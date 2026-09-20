@@ -33,5 +33,8 @@ disable_raw::proc(){
 init_window::proc()->bool{
 	if !enable_raw() do return false
 
-	if posix.ioctl
+	if posix.ioctl(0,linux.TIOCGWINSZ,&ws) !=0 do return false
+
+	fmt.print("raw mode")
+	disable_raw()
 }
