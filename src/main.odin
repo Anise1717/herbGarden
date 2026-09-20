@@ -2,8 +2,8 @@ package main
 import "core:fmt"
 import "core:terminal"
 import "core:os"
-import 
+import "herbGarden" 
 main::proc(){
-
+	herbGarden.init_window();
 }
 
