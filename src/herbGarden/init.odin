@@ -35,7 +35,6 @@ init_window :: proc(alloc:=context.allocator,pack_verticle:=false) -> (bool,cell
 	if !enable_raw() do return false,{}
 
 	if linux.ioctl(0, linux.TIOCGWINSZ,uintptr(&ws)) != 0 do return false,{}
-	fmt.printf("%s%d;%d%s",ansi.CSI,2,2,ansi.CUP)
 	fmt.printf("raw")
 	result,err:= create_cells(ws.row,ws.column,alloc,pack_verticle);
 	if err!= nil do return false,{}
