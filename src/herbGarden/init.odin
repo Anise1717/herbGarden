@@ -31,13 +31,22 @@ enable_raw :: proc() -> bool {
 disable_raw :: proc() {
 	posix.tcsetattr(0, .TCSAFLUSH, &origin_state)
 }
-init_window :: proc(alloc:=context.allocator,pack_verticle:=false) -> (bool,cell) {
-	if !enable_raw() do return false,{}
+enter_alt_screen :: proc() {
+	fmt.print("\e[?1049h")
+}
 
+leave_alt_screen :: proc() {
+	fmt.print("\e[?1049l")
+}
+hide_cursor :: proc() {
+	fmt.print("\e[?25l")
+}
+
+show_cursor :: proc() {
+	fmt.print("\e[?25h")
+}
+size:: proc() -> (bool,winsize) {
 	if linux.ioctl(0, linux.TIOCGWINSZ,uintptr(&ws)) != 0 do return false,{}
-	fmt.printf("raw")
-	result,err:= create_cells(ws.row,ws.column,alloc,pack_verticle);
-	if err!= nil do return false,{}
-	return true, result
+	return true, ws
 }
 
