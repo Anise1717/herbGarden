@@ -40,7 +40,7 @@ read_byte :: proc(fd: ^os.File) -> (b: byte, ok: bool) {
 keypress :: proc(fd: ^os.File) -> Key {
 	b, ok := read_byte(fd)
 	if !ok {
-		fmt.print("os error\n")
+		//fmt.print("os error\n")
 		return os.Error{}
 	}
 

@@ -22,6 +22,7 @@ cell :: struct {
 	origin_y:        u16,
 	z:               i16,
 	packed_verticle: bool,
+	has_border:bool,
 	x:               [dynamic]u16,
 	y:               [dynamic]u16,
 	character:       [dynamic]rune,
@@ -85,8 +86,8 @@ get_term_color :: proc(req: string) -> color {
 create_cells :: proc(
 	height: u16,
 	width: u16,
-	org_x: u16,
 	org_y: u16,
+	org_x: u16,
 	layer: i16 = 0,
 	allocator := context.allocator,
 	pack_verticle: bool = false,
@@ -105,6 +106,7 @@ create_cells :: proc(
 	result.alloc = allocator
 	result.width=width
 	result.height=height
+	result.has_border=false
 	space_needed := int(width) * int(height)
 
 	result.x = make([dynamic]u16, 0, 0, allocator)
