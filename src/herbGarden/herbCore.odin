@@ -1,7 +1,12 @@
 package herbGarden
 import "core:fmt"
-import"core:slice"
-import "core:terminal/ansi"
+import "core:sys/posix"
+import "core:os"
+import "core:strings"
+SYNC_BEGIN::"\x1b[?2026h"
+
+SYNC_END::"\x1b[?2026l"
+frame_buffer:strings.Builder
 ColorArea :: enum {
 	FG,
 	BG,
@@ -15,7 +20,7 @@ get_cell_index :: #force_inline proc(window: ^cell, x: u16, y: u16) -> int {
 }
 ///Cells are 0 indexed, this function adds 1 to coords to account for ANSI setting top left as (1,1)
 move_cursor :: #force_inline proc(window: ^cell, x: u16, y: u16) {
-	fmt.printf("\e[%d;%dH", window.origin_y + y + 1, window.origin_x + x + 1)
+	fmt.sbprintf(&frame_buffer,"\e[%d;%dH", window.origin_y + y + 1, window.origin_x + x + 1)
 }
 write :: proc(window: ^cell, start_x: u16, start_y: u16, content: string) -> bool {
 	index := get_cell_index(window, start_x, start_y)
@@ -25,6 +30,7 @@ write :: proc(window: ^cell, start_x: u16, start_y: u16, content: string) -> boo
 		window.dirty[index] = true
 		index += 1
 	}
+	
 	return true
 }
 ///setting BG to true sets background color, by defualt Foreground color is set
@@ -49,17 +55,23 @@ set_color :: proc(
 }
 
 flush :: proc(window: ^cell) -> bool {
+	strings.builder_reset(&frame_buffer)	
+	strings.write_string(&frame_buffer,SYNC_BEGIN)
 	for x, index in window.x {
 		if x >= window.width || window.y[index] >= window.height {
 			continue
 		}
 		if window.dirty[index] {
+
 			move_cursor(window, x, window.y[index])
 			hprint(window.character[index], window.foreground[index], window.background[index])
 			window.dirty[index] = false
 		}
 	}
+	strings.write_string(&frame_buffer, SYNC_END)
+	os.write_string(os.stdout, strings.to_string(frame_buffer))
 	return true
+
 }
 draw_border :: proc(window: ^cell) {
 	left: u16 = 0
@@ -103,8 +115,44 @@ clear_border :: proc(window: ^cell) {
 		write(window, right, index, " ")
 	}
 }
+clear_text::proc(window:^cell){
+	for _,index in window.character{
+		if window.has_border{
+			if window.x[index] ==0 || window.x[index]==window.width-1{
+				continue
+			}
+			if window.y[index]==0||window.y[index]==window.height-1{
+				continue
+			}
+			
+		}
+		window.character[index] = ' '
+		window.dirty[index]=true
+
+	}
+}
+clear_foreground::proc(window:^cell){
+	for _,index in window.character{
+		window.foreground[index] = get_term_color(FG_QUERY)
+		window.dirty[index]=true
+
+	}
+}
+clear_background::proc(window:^cell){
+	for _,index in window.character{
+		window.background[index] = get_term_color(FG_QUERY)
+		window.dirty[index]=true
+
+	}
+}
+clear_buffer::proc(window:^cell){
+	clear_background(window)
+	clear_foreground(window)
+	clear_text(window)
+}
 hprint :: #force_inline proc(char: rune, fg: color, bg: color) {
-	fmt.printf(
+	fmt.sbprintf(
+		&frame_buffer,
 		"\e[38;2;%d;%d;%dm\e[48;2;%d;%d;%dm%c\e[0m",
 		fg.r,
 		fg.g,
@@ -200,3 +248,60 @@ resize_cells :: proc(window: ^cell, height, width, origin_y, origin_x: u16) {
 	}
 	flush(window)
 }
+
+get_cursor_position :: proc() -> (row, col: u16, ok: bool) {
+	orig: posix.termios
+	if posix.tcgetattr(posix.STDIN_FILENO, &orig) != .OK {
+		return
+	}
+	defer posix.tcsetattr(posix.STDIN_FILENO, .TCSANOW, &orig)
+
+	raw := orig
+	raw.c_lflag -= {.ICANON, .ECHO}
+	raw.c_cc[.VMIN]  = 0
+	raw.c_cc[.VTIME] = 10 // 1 second read timeout
+	if posix.tcsetattr(posix.STDIN_FILENO, .TCSANOW, &raw) != .OK {
+		return
+	}
+
+	// Ask the terminal to report the cursor position
+	query := "\x1b[6n"
+	if posix.write(posix.STDOUT_FILENO, raw_data(query), uint(len(query))) < 0 {
+		return
+	}
+
+	// Response format: ESC [ <row> ; <col> R
+	buf: [32]u8
+	n := 0
+	for n < len(buf) {
+		if posix.read(posix.STDIN_FILENO, &buf[n], 1) != 1 {
+			return
+		}
+		if buf[n] == 'R' {
+			n += 1
+			break
+		}
+		n += 1
+	}
+
+	resp := buf[:n]
+	if len(resp) < 6 || resp[0] != 0x1b || resp[1] != '[' || resp[n-1] != 'R' {
+		return
+	}
+
+	r, c: u32
+	i := 2
+	for ; i < n && resp[i] >= '0' && resp[i] <= '9'; i += 1 {
+		r = r * 10 + u32(resp[i] - '0')
+	}
+	if i >= n || resp[i] != ';' {
+		return
+	}
+	i += 1
+	for ; i < n && resp[i] >= '0' && resp[i] <= '9'; i += 1 {
+		c = c * 10 + u32(resp[i] - '0')
+	}
+
+	return u16(r), u16(c), true
+}
+

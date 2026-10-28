@@ -36,8 +36,8 @@ main :: proc() {
 	if virtual.arena_init_static(&input_arena) != nil {panic("allocator error at line 13")}
 	defer virtual.arena_free_all(&input_arena)
 	input_allocator := virtual.arena_allocator(&input_arena)
-	testcolor := herbGarden.color{255, 255, 255}
-	herbGarden.set_color(&ani, 30, 30, testcolor, .BG)
+	testcolor := herbGarden.color{0, 255, 0}
+	herbGarden.set_color(&ani, 11, 1, testcolor, .FG)
 	fmt.printf("col:%d,row:%d", window.column, window.row)
 	herbGarden.write(&ani, 1, 1, "hello World")
 	herbGarden.write(&ani2, 30, 30, "hello World")
@@ -45,8 +45,9 @@ main :: proc() {
 	herbGarden.draw_border(&ani2)
 	herbGarden.flush(&ani)
 	herbGarden.flush(&ani2)
-	cursor_x, cursor_y: u16 = 0, 0
+	cursor_x, cursor_y, _ := herbGarden.get_cursor_position()
 	draw_status(cursor_x, cursor_y, window.row)
+	toggle := true
 
 	for {
 		if sync.atomic_exchange(&window_resized, false) {
@@ -60,6 +61,18 @@ main :: proc() {
 			if k == 'q' {
 				return
 			}
+			if k == 'c' {
+				herbGarden.clear_buffer(&ani)
+			}
+			if k == 's' {
+				if toggle {
+					herbGarden.fill(&ani, testcolor)
+				} else {
+					herbGarden.fill(&ani, {255, 0, 0})
+				}
+				toggle = !toggle
+			}
+
 
 		case herbGarden.Special_Key:
 			#partial switch k.code {
@@ -75,11 +88,13 @@ main :: proc() {
 			draw_status(cursor_x, cursor_y, window.row)
 
 		case os.Error:
-			if k==nil {
+			if k == nil {
 				continue
-			};
+			}
 			return
 		}
+		herbGarden.flush(&ani)
+		herbGarden.flush(&ani2)
 	}
 
 }
