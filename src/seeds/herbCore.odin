@@ -1,6 +1,5 @@
 
-package herbGarden
-
+package seeds
 import "core:fmt"
 import "core:os"
 import "core:strings"

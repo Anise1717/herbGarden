@@ -1,5 +1,4 @@
-package herbGarden
-
+package seeds
 import "core:fmt"
 import "core:mem"
 import "core:strconv"
