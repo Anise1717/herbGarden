@@ -1,41 +1,48 @@
 package sprouts
-ComponentId :: uint
-contructor :: proc(dst: rawptr)
+import "base:runtime"
 destructor :: proc(p: rawptr)
-move_con :: proc(dst: rawptr, src: rawptr)
 
-next_component_id :: #force_inline proc() -> ComponentId {
-	@(static) current_comp_id: ComponentId = 0
-	current_comp_id += 1
-	return current_comp_id
+Component_Info :: struct {
+	id:      typeid,
+	size:    int,
+	align:   int,
+	destroy: proc(ptr: rawptr),
 }
-
-ComponentInfo :: struct {
-	id:     ComponentId,
-	size:   int,
-	align:  int,
-	new:    contructor,
-	delete: destructor,
-	move:   move_con,
+component_info::proc{
+	component_info_destroy,
+	component_info_plain
 }
-
-component_info :: proc($T: typeid) -> ComponentInfo {
-	@(static) info: ComponentInfo
-	@(static) initialized: bool
-
-	if !initialized {
-		info = ComponentInfo {
-			id = next_component_id(),
-			size = size_of(T),
-			align = align_of(T),
-			new = contructor(){(^T)(dst)^ = T{}},
-			delete = destructor(){destroy_owned(p, type_info_of(T))},
-			move = move_con(){(^T)(dst)^ = (^T)(src)^},
-		}
-
-
-		initialized = true
+component_info_plain :: proc($T: typeid) -> Component_Info {
+	info = ComponentInfo {
+		id    = T,
+		size  = size_of(T),
+		align = align_of(T),	
 	}
 
+
 	return info
+}
+component_info_destroy :: proc($T: typeid, $Destroy: proc(^T)) -> Component_Info {
+	info = ComponentInfo {
+		id    = T,
+		size  = size_of(T),
+		align = align_of(T),
+		info.destroy = proc(ptr: rawptr) {
+			Destroy: ((^T)(ptr))
+		}
+	}
+
+
+	return info
+}
+component_zero::proc(info:Component_Info,dst:rawptr){
+	runtime.mem_zero(dst,info.size)
+}
+component_move::proc(info:Component_Info,dst:rawptr,src:rawptr){
+	runtime.mem_copy_non_overlapping(dst,src,info.size)
+}
+component_destroy::proc(info:Component_Info,ptr:rawptr){
+	if info.destroy !=nil{
+		info.destroy(ptr)
+	}
 }

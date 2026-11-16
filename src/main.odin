@@ -1,3 +1,4 @@
+#+ feature dynamic-literals
 package main
 import "core:bufio"
 import "core:fmt"
@@ -5,6 +6,7 @@ import "core:mem/virtual"
 import "core:os"
 import "core:sync"
 import "core:sys/posix"
+import "core:slice"
 import "core:terminal"
 import "seeds"
 
@@ -47,8 +49,13 @@ main :: proc() {
 	seeds.flush(&ani2)
 	cursor_x, cursor_y, _ := seeds.get_cursor_position()
 	draw_status(cursor_x, cursor_y, window.row)
-	toggle := true
+	foo:[dynamic]int={1,1,2,3,3,4,4,4,5,5,5,5}
+	tmp:=slice.unique(foo[:])
+	tmp_len:=len(tmp)
+	resize(&foo,tmp_len)
+	fmt.println(foo);
 
+	toggle := true
 	for {
 		if sync.atomic_exchange(&window_resized, false) {
 			_, window = seeds.size()
