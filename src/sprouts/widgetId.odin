@@ -1,4 +1,4 @@
 package sprouts
 
-WidgetId:: distinct uint
+WidgetId:: uint
 INVALID_WIDGET::WidgetId(max(uint))

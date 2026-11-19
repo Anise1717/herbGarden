@@ -2,7 +2,7 @@ package sprouts
 import "base:runtime"
 
 Move_Result :: struct {
-	new_row: int,
+	new_row: uint,
 	swapped: WidgetId,
 }
 Archetype :: struct {
@@ -15,7 +15,7 @@ Archetype :: struct {
 }
 archetype_init :: proc(
 	new_signature: Signature,
-	infos: []Component_Info,
+	infos: []^Component_Info,
 	new_allocator := context.allocator,
 ) -> Archetype {
 
@@ -33,7 +33,7 @@ archetype_init :: proc(
 		found := false
 		for &info in infos {
 			if info.id == id {
-				arch.columns[i] = column_init(&info, new_allocator)
+				arch.columns[i] = column_init(info, new_allocator)
 				found = true
 				break
 			}
@@ -117,7 +117,7 @@ arhctype_set :: proc(arch: ^Archetype, row: int, value: $T) {
 	archetype_get(arch, row, T)^ = value
 }
 
-archetype_add_widget :: proc(arch: ^Archetype, row: int, widget: WidgetId) -> int {
+archetype_add_widget :: proc(arch: ^Archetype, widget: WidgetId) -> int {
 	row := len(arch.widgets)
 	for &col in arch.columns {
 		column_push_empty(&col)
@@ -125,7 +125,7 @@ archetype_add_widget :: proc(arch: ^Archetype, row: int, widget: WidgetId) -> in
 	append(&arch.widgets, widget)
 	return row
 }
-archetype_remove_entity :: proc(arch: ^Archetype, row: int) -> WidgetId {
+archetype_remove_widget :: proc(arch: ^Archetype, row: uint) -> WidgetId {
 	assert(row < len(arch.widgets))
 	for &col in arch.columns {
 		column_swap_remove(&col, uint(row))
@@ -137,7 +137,7 @@ archetype_remove_entity :: proc(arch: ^Archetype, row: int) -> WidgetId {
 	unordered_remove(&arch.widgets, row)
 	return swapped
 }
-archetype_move_entity :: proc(arch: ^Archetype, row: int, dst: ^Archetype) -> Move_Result {
+archetype_move_widget :: proc(arch: ^Archetype, row: uint, dst: ^Archetype) -> Move_Result {
 	assert(row < len(arch.widgets))
 	assert(dst != arch)
 
@@ -150,9 +150,9 @@ archetype_move_entity :: proc(arch: ^Archetype, row: int, dst: ^Archetype) -> Mo
 			column_push_empty(&dst_col)
 		}
 	}
-	new_row := len(dst.widgets)
+	new_row :=uint( len(dst.widgets))
 	append(&dst.widgets, widget)
-	swapped := archetype_remove_entity(arch, row)
+	swapped := archetype_remove_widget(arch, row)
 	return {new_row, swapped}
 }
 archetype_reserve::proc(arch:^Archetype,needed:int){
