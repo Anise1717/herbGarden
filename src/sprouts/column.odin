@@ -5,14 +5,14 @@ import "core:mem"
 Column::struct{
 	info:^Component_Info,
 	data:^u8,
-	count:uint,
-	capacity:uint,
+	count:int,
+	capacity:int,
 	allocator:mem.Allocator
 }
 column_init::proc(new_info:^Component_Info,new_allocator:=context.allocator)-> Column{
 	return Column{info=new_info,allocator =new_allocator}
 }
-column_ensure_capacity::proc(col:^Column,needed:uint){
+column_ensure_capacity::proc(col:^Column,needed:int){
 	if needed<= col.capacity {return}
 	new_cap:= col.capacity*2 if col.capacity!=0 else 8
 	if new_cap<needed{new_cap=needed}
@@ -36,32 +36,32 @@ column_destroy_all::proc(col:^Column){
 		col.info.destroy(column_at(col,i))
 	}
 }
-column_slot::proc(col:^Column,index:uint)->rawptr{
+column_slot::proc(col:^Column,index:int)->rawptr{
 
 	return rawptr(uintptr(col.data)+uintptr(index)*uintptr(col.info.size))
 }
 @(private)
-column_at::proc(col:^Column,index:uint)-> rawptr{
+column_at::proc(col:^Column,index:int)-> rawptr{
 	assert(col.count>index)
 	return column_slot(col,index)
 }
 column_push_empty::proc(col:^Column){
 	if(col.info.size!=0){
 		column_ensure_capacity(col,col.count+1)
-		mem.zero(column_at(col,col.count),col.info.size)
+		mem.zero(column_slot(col,col.count),col.info.size)
 	}
 	col.count+=1
 }
 column_push_move::proc(col:^Column,src:rawptr){
 	if(col.info.size!=0){
 		column_ensure_capacity(col,col.count+1)
-		mem.copy_non_overlapping(column_at(col,col.count),src,col.info.size)
+		mem.copy_non_overlapping(column_slot(col,col.count),src,col.info.size)
 		mem.zero(src,col.info.size)	
 	}
 	col.count+=1
 	
 }
-column_swap_remove :: proc(col: ^Column, index: uint) {
+column_swap_remove :: proc(col: ^Column, index: int) {
 	assert(index < col.count)
 	last := col.count - 1
 	if col.info.size != 0 {

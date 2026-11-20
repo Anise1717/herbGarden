@@ -13,7 +13,7 @@ component_info::proc{
 	component_info_plain
 }
 component_info_plain :: proc($T: typeid) -> Component_Info {
-	info = ComponentInfo {
+	info := Component_Info {
 		id    = T,
 		size  = size_of(T),
 		align = align_of(T),	
@@ -23,12 +23,12 @@ component_info_plain :: proc($T: typeid) -> Component_Info {
 	return info
 }
 component_info_destroy :: proc($T: typeid, $Destroy: proc(^T)) -> Component_Info {
-	info = ComponentInfo {
+	info := Component_Info {
 		id    = T,
 		size  = size_of(T),
 		align = align_of(T),
-		info.destroy = proc(ptr: rawptr) {
-			Destroy: ((^T)(ptr))
+		destroy = proc(ptr: rawptr) {
+			Destroy((^T)(ptr))
 		}
 	}
 

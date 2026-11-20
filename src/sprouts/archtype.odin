@@ -2,7 +2,7 @@ package sprouts
 import "base:runtime"
 
 Move_Result :: struct {
-	new_row: uint,
+	new_row: int,
 	swapped: WidgetId,
 }
 Archetype :: struct {
@@ -98,20 +98,20 @@ find_column :: proc(arch: ^Archetype, id: typeid) -> ^Column {
 }
 
 
-archetype_data :: proc(arch: ^Archetype, $T: typeid) -> [^]T {
+archetype_data :: proc(arch: ^Archetype, $T: typeid) -> []T {
 	c := find_column(arch, T)
-	if c == nil {return nil}
-	return ([^]T)(c.data)
+	if c == nil||c.data==nil {return nil}
+	return ([^]T)(c.data)[:c.count]
 }
 archetype_get :: proc(arch: ^Archetype, row: int, $T: typeid) -> ^T {
 	c := find_column(arch, T)
 	assert(c != nil, "component not in archetype")
-	return (^T)(column_at(c, uint(row)))
+	return (^T)(column_at(c, int(row)))
 }
 archetype_try_get :: proc(arch: ^Archetype, row: int, $T: typeid) -> ^T {
 	c := find_column(arch, T)
 	if c == nil {return nil}
-	return (^T)(column_at(c, uint(row)))
+	return (^T)(column_at(c, int(row)))
 }
 arhctype_set :: proc(arch: ^Archetype, row: int, value: $T) {
 	archetype_get(arch, row, T)^ = value
@@ -125,10 +125,10 @@ archetype_add_widget :: proc(arch: ^Archetype, widget: WidgetId) -> int {
 	append(&arch.widgets, widget)
 	return row
 }
-archetype_remove_widget :: proc(arch: ^Archetype, row: uint) -> WidgetId {
+archetype_remove_widget :: proc(arch: ^Archetype, row: int) -> WidgetId {
 	assert(row < len(arch.widgets))
 	for &col in arch.columns {
-		column_swap_remove(&col, uint(row))
+		column_swap_remove(&col, int(row))
 	}
 	swapped := INVALID_WIDGET
 	if row != len(arch.widgets) - 1 {
@@ -137,7 +137,7 @@ archetype_remove_widget :: proc(arch: ^Archetype, row: uint) -> WidgetId {
 	unordered_remove(&arch.widgets, row)
 	return swapped
 }
-archetype_move_widget :: proc(arch: ^Archetype, row: uint, dst: ^Archetype) -> Move_Result {
+archetype_move_widget :: proc(arch: ^Archetype, row: int, dst: ^Archetype) -> Move_Result {
 	assert(row < len(arch.widgets))
 	assert(dst != arch)
 
@@ -145,12 +145,12 @@ archetype_move_widget :: proc(arch: ^Archetype, row: uint, dst: ^Archetype) -> M
 	for &dst_col in dst.columns {
 		src_col := find_column(arch, dst_col.info.id)
 		if src_col != nil {
-			column_push_move(&dst_col, column_at(src_col, uint(row)))
+			column_push_move(&dst_col, column_at(src_col, int(row)))
 		} else {
 			column_push_empty(&dst_col)
 		}
 	}
-	new_row :=uint( len(dst.widgets))
+	new_row :=int( len(dst.widgets))
 	append(&dst.widgets, widget)
 	swapped := archetype_remove_widget(arch, row)
 	return {new_row, swapped}
@@ -158,7 +158,7 @@ archetype_move_widget :: proc(arch: ^Archetype, row: uint, dst: ^Archetype) -> M
 archetype_reserve::proc(arch:^Archetype,needed:int){
 	reserve(&arch.widgets,needed)
 	for &col in arch.columns{
-		column_ensure_capacity(&col,uint(needed))
+		column_ensure_capacity(&col,int(needed))
 	}
 }
 archetype_add_edge::proc(arch:^Archetype,id:typeid)->^Archetype{
