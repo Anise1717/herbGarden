@@ -1,5 +1,6 @@
 package sprouts
 
+
 import "../seeds"
 import "base:intrinsics"
 import "base:runtime"
@@ -14,7 +15,19 @@ Location :: struct {
 	arch: ^Archetype,
 	row:  int,
 }
+Draw_Proc::proc(app:^App,arch:^Archetype,row:int)
+Drawer :: struct {
+	query: Signature,
+	draw:  Draw_Proc,
+}
+Resize_proc :: proc(app: ^App)
 
+Draw_item :: struct {
+	z:         int,
+	arch:      ^Archetype,
+	row:       int,
+	draw_proc: ^Drawer,
+}
 sigwinch_handler :: proc "c" (sig: posix.Signal) {
 	intrinsics.atomic_store(&g_window_resized, true)
 }
@@ -22,18 +35,28 @@ init_sigwinch :: proc() {
 	sa: posix.sigaction_t
 	sa.sa_handler = sigwinch_handler
 	posix.sigemptyset(&sa.sa_mask)
-	sa.sa_flags = {.RESTART}
+	sa.sa_flags = {}
 	posix.sigaction(SIGWINCH, &sa, nil)
+}
+Screen_Buffer :: struct {
+	char:  rune,
+	fg:    seeds.color,
+	bg:    seeds.color,
+	style: seeds.Text_Style,
 }
 
 App :: struct {
-	infos:      map[typeid]^Component_Info,
-	archetypes: [dynamic]^Archetype,
-	buckets:    map[uintptr][dynamic]^Archetype,
-	locations:  [dynamic]Location,
-	free_list:  [dynamic]WidgetId,
-	root:       ^Archetype,
-	allocator:  runtime.Allocator,
+	infos:       map[typeid]^Component_Info,
+	archetypes:  [dynamic]^Archetype,
+	buckets:     map[uintptr][dynamic]^Archetype,
+	locations:   [dynamic]Location,
+	free_list:   [dynamic]WidgetId,
+	root:        ^Archetype,
+	drawers:     [dynamic]Drawer,
+	resize_proc: [dynamic]Resize_proc,
+	front:       []Screen_Buffer,
+	back:        []Screen_Buffer,
+	allocator:   runtime.Allocator,
 }
 app_init :: proc(app: ^App, allocator := context.allocator) {
 	app.allocator = allocator
@@ -41,6 +64,8 @@ app_init :: proc(app: ^App, allocator := context.allocator) {
 	app.archetypes = make([dynamic]^Archetype, allocator)
 	app.buckets = make(map[uintptr][dynamic]^Archetype, allocator)
 	app.locations = make([dynamic]Location, allocator)
+	app.drawers = make([dynamic]Drawer, allocator)
+	app.resize_proc = make([dynamic]Resize_proc, allocator)
 	app.root = app_get_archetype(app, nil)
 	init_sigwinch()
 	seeds.enable_raw()
@@ -86,6 +111,35 @@ app_get_archetype :: proc(app: ^App, sig: []typeid) -> ^Archetype {
 	return arch
 
 }
+app_register_draw :: proc(app: ^App,sig:Signature, draw: Draw_Proc) {
+	append(&app.drawers,Drawer{sig,draw})
+}
+app_register_resize :: proc(app: ^App, resize: Resize_proc) {
+	append(&app.resize_proc, resize)
+}
+app_run_draw :: proc(app: ^App) {
+	items := make([dynamic]Draw_item, 0, 64, context.temp_allocator)
+	for &draw in app.drawers {
+		q := make_signature(Layer, allocator = context.temp_allocator)
+		append(&q, ..draw.query[:])
+		deduped(&q)
+		for arch in app_matching_archetypes(app, q[:]) {
+			layer := archetype_data(arch, Layer)
+			for i in 0 ..< len(layer) {
+				append(&items, Draw_item{layer[i].z, arch, i, &draw})
+			}
+		}
+	}
+	slice.stable_sort_by(items[:],proc(a,b:Draw_item)->bool{return a.z<b.z})
+	for it in items{
+		it.draw_proc.draw(app,it.arch,it.row)
+	}
+}
+app_run_resize :: proc(app: ^App) {
+	for r in app.resize_proc {
+		r(app)
+	}
+}
 app_get :: proc(app: ^App, w: WidgetId, $T: typeid) -> ^T {
 	loc := app.locations[w]
 	if loc.arch == nil {return nil}
@@ -99,7 +153,7 @@ app_spawn :: proc(app: ^App) -> WidgetId {
 		w = len(&app.locations)
 		append(&app.locations, Location{})
 	}
-	row := archetype_add_widget(app.root,w)
+	row := archetype_add_widget(app.root, w)
 	app.locations[w] = Location{app.root, int(w)}
 	return w
 }

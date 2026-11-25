@@ -1,14 +1,29 @@
 package sprouts
+import"../seeds/"
 
 Text::struct{
+	text:[dynamic]rune,
+}
+Area::struct{
 	length:int,
 	height:int,
-	text:[dynamic]rune,
 }
 text_destroy::proc(text:^Text){
 	delete(text.text)
 }
 
+Bg_Color::struct{
+	color:[dynamic]seeds.color
+}
+Fg_Color::struct{
+	color:[dynamic]seeds.color
+}
+fg_destroy::proc(fg:^Fg_Color){
+	delete(fg.color)
+}
+bg_destroy::proc(bg:^Bg_Color){
+	delete(bg.color)
+}
 Layer::struct{
 	z:int
 }

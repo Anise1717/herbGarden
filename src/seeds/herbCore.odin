@@ -19,6 +19,12 @@ ColorArea :: enum {
 	FG,
 	BG,
 }
+Text_Style::bit_set[enum u8{
+	Bold,
+	Italic,
+	Underline,
+	Reverse,
+};u8]
 
 /// The six strings used to draw a border.
 Border_Glyphs :: struct {

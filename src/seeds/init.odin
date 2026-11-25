@@ -22,8 +22,8 @@ enable_raw :: proc() -> bool {
 	raw.c_lflag &~= {.ECHO, .ICANON, .IEXTEN, .ISIG}
 	raw.c_iflag &~= {.IXON, .ICRNL, .BRKINT, .INPCK, .ISTRIP}
 	raw.c_oflag &~= {.OPOST}
-	raw.c_cc[.VMIN] = 1
-	raw.c_cc[.VTIME] =0
+	raw.c_cc[.VMIN] = 0
+	raw.c_cc[.VTIME] =1
 	if posix.tcsetattr(0, .TCSAFLUSH, &raw) != posix.result.OK do return false
 	return true
 }
